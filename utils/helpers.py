@@ -1,8 +1,5 @@
-def colorize(value, good_threshold, bad_threshold):
-    if value >= good_threshold:
-        return "🟢 " + str(round(value, 3))
-    elif value <= bad_threshold:
-        return "🔴 " + str(round(value, 3))
-    else:
-        return "🟡 " + str(round(value, 3))
-
+def fmt(x, digits=4):
+    try:
+        return round(x, digits)
+    except:
+        return x
