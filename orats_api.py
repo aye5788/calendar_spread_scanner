@@ -3,40 +3,41 @@ import streamlit as st
 
 BASE_URL = "https://api.orats.io/datav2"
 
-def _token():
+def token():
     return st.secrets["ORATS_API_KEY"]
 
-# ----------------------------------------------------
-# Get Core Data
-# ----------------------------------------------------
-def get_core_data(ticker: str):
-    url = f"{BASE_URL}/core?ticker={ticker}&token={_token()}"
+# ------------------------
+# GET CORE DATA
+# ------------------------
+def get_core_data(ticker):
+    url = f"{BASE_URL}/cores?token={token()}&ticker={ticker}"
     r = requests.get(url)
     r.raise_for_status()
     return r.json()
 
-# ----------------------------------------------------
-# Get ALL strikes chain (all expirations)
-# ----------------------------------------------------
-def get_strikes_chain(ticker: str):
-    url = f"{BASE_URL}/strikes?ticker={ticker}&token={_token()}"
+# ------------------------
+# GET FULL STRIKES CHAIN
+# ------------------------
+def get_strikes_chain(ticker):
+    url = f"{BASE_URL}/strikes?token={token()}&ticker={ticker}"
     r = requests.get(url)
     r.raise_for_status()
     return r.json()
 
-# ----------------------------------------------------
-# Extract expirations
-# ----------------------------------------------------
-def extract_expirations(strikes_chain):
-    exps = sorted(list({item["expiration"] for item in strikes_chain}))
-    return exps
+# ------------------------
+# EXTRACT EXPIRATIONS
+# ------------------------
+def extract_expirations(chain):
+    # chain is a LIST of option objects
+    expirations = sorted({item["expiration"] for item in chain})
+    return expirations
 
-# ----------------------------------------------------
-# Find specific option
-# ----------------------------------------------------
-def find_option(strikes_chain, expiration, strike, call=True):
+# ------------------------
+# FIND SPECIFIC OPTION
+# ------------------------
+def find_option(chain, expiration, strike, call=True):
     cp = "call" if call else "put"
-    for opt in strikes_chain:
+    for opt in chain:
         if (
             opt["expiration"] == expiration and
             float(opt["strike"]) == float(strike) and
@@ -44,4 +45,3 @@ def find_option(strikes_chain, expiration, strike, call=True):
         ):
             return opt
     return None
-
