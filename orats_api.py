@@ -1,51 +1,49 @@
 import requests
 import streamlit as st
 
-BASE_URL = "https://api.orats.io/data/v2"
+BASE_URL = "https://api.orats.io/datav2"
 
 def _headers():
-    return {"Authorization": f"Bearer {st.secrets['ORATS_API_KEY']}"}
+    return {
+        "Authorization": f"Bearer {st.secrets['ORATS_API_KEY']}"
+    }
 
-# -------------------------------
-# GET EXPIRATION DATES
-# -------------------------------
-def get_expirations(ticker):
-    url = f"{BASE_URL}/cores/{ticker}"
-    r = requests.get(url, headers=_headers())
-    r.raise_for_status()
-    data = r.json()
-    exp_list = data.get("expirations", [])
-    return exp_list
-
-
-# -------------------------------
-# GET STRIKE-LEVEL OPTION DATA
-# For a specific expiration & ticker
-# -------------------------------
-def get_strikes(ticker, expiry):
-    url = f"{BASE_URL}/strikes/{ticker}/{expiry}"
+# ----------------------------------------------------
+# Get Ticker Core Data (IVs, HVs, aggregates)
+# ----------------------------------------------------
+def get_core_data(ticker: str):
+    url = f"{BASE_URL}/core?ticker={ticker}"
     r = requests.get(url, headers=_headers())
     r.raise_for_status()
     return r.json()
 
-
-# -------------------------------
-# GET CORE (IV, ATM Greeks, IV surfaces, HV, skew)
-# -------------------------------
-def get_core_data(ticker):
-    url = f"{BASE_URL}/cores/{ticker}"
+# ----------------------------------------------------
+# Get Strikes Chain (ALL expirations & strikes)
+# ----------------------------------------------------
+def get_strikes_chain(ticker: str):
+    url = f"{BASE_URL}/strikes?ticker={ticker}"
     r = requests.get(url, headers=_headers())
     r.raise_for_status()
     return r.json()
 
+# ----------------------------------------------------
+# Extract list of expirations from strikes data
+# ----------------------------------------------------
+def extract_expirations(strikes_chain):
+    exps = sorted(list({item["expiration"] for item in strikes_chain}))
+    return exps
 
-# -------------------------------
-# Find a specific option (call or put) by strike
-# -------------------------------
-def filter_option(strikes_data, strike, call=True):
-    key = "calls" if call else "puts"
-    for opt in strikes_data.get(key, []):
-        if float(opt["strike"]) == float(strike):
+# ----------------------------------------------------
+# Filter a specific option by expiration + strike
+# ----------------------------------------------------
+def find_option(strikes_chain, expiration, strike, call=True):
+    cp = "call" if call else "put"
+    for opt in strikes_chain:
+        if (
+            opt["expiration"] == expiration and
+            float(opt["strike"]) == float(strike) and
+            opt["callPut"] == cp
+        ):
             return opt
     return None
 
