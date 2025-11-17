@@ -1,67 +1,68 @@
 import numpy as np
 
 def compute_calendar_metrics(short_opt, long_opt, core):
-
     # -------------------------------
-    # Greeks
+    # Greeks (CALLS)
     # -------------------------------
-    net_vega  = long_opt["vega"]  - short_opt["vega"]
+    net_vega = long_opt["vega"] - short_opt["vega"]
     net_theta = long_opt["theta"] - short_opt["theta"]
-    net_gamma = long_opt["gamma"] - short_opt["gamma"]
     net_delta = long_opt["delta"] - short_opt["delta"]
+    net_gamma = long_opt["gamma"] - short_opt["gamma"]
 
     # -------------------------------
     # DTE Ratio
     # -------------------------------
-    dte_ratio = None
-    try:
-        dte_ratio = long_opt["dte"] / short_opt["dte"]
-    except:
-        dte_ratio = np.nan
+    dte_ratio = long_opt["dte"] / short_opt["dte"] if short_opt["dte"] > 0 else np.nan
+
+    # -------------------------------
+    # Mid prices (CALL)
+    # -------------------------------
+    short_mid = (short_opt["callBidPrice"] + short_opt["callAskPrice"]) / 2
+    long_mid  = (long_opt["callBidPrice"]  + long_opt["callAskPrice"])  / 2
+
+    debit = long_mid - short_mid
 
     # -------------------------------
     # Extrinsic Values
     # -------------------------------
-    def extrinsic(o):
-        intrinsic = max(o["underlyingPrice"] - o["strike"], 0) if o["callPut"] == "call" else \
-                    max(o["strike"] - o["underlyingPrice"], 0)
-        return o["mid"] - intrinsic
+    def extrinsic_call(o):
+        intrinsic = max(o["spotPrice"] - o["strike"], 0)
+        mid = (o["callBidPrice"] + o["callAskPrice"]) / 2
+        return mid - intrinsic
 
-    extr_short = extrinsic(short_opt)
-    extr_long  = extrinsic(long_opt)
+    extr_short = extrinsic_call(short_opt)
+    extr_long  = extrinsic_call(long_opt)
 
     extr_ratio = extr_short / extr_long if extr_long > 0 else np.nan
 
     # -------------------------------
-    # Vega/Theta Ratio (VTR)
+    # Vega / Theta ratio
     # -------------------------------
     vtr = abs(net_vega) / abs(net_theta) if net_theta != 0 else np.nan
 
     # -------------------------------
-    # IV Decay Differential (using core IVs)
+    # IV decay differential (front vs back)
     # -------------------------------
     iv_front = core.get("iv20d", np.nan)
     iv_back  = core.get("iv60d", np.nan)
     iv_decay_diff = iv_front - iv_back
 
     # -------------------------------
-    # Implied Move Ratio
+    # Implied move ratio
     # -------------------------------
     implied_move = core.get("impliedMove", np.nan)
     breakeven_width = implied_move * 0.9
     em_ratio = breakeven_width / implied_move if implied_move else np.nan
 
     # -------------------------------
-    # Peak/Cost Ratio (simplified)
+    # Peak / Cost ratio
     # -------------------------------
-    debit = long_opt["mid"] - short_opt["mid"]
-    peak_value = extr_short
-    peak_cost_ratio = peak_value / debit if debit != 0 else np.nan
+    peak_cost_ratio = extr_short / debit if debit != 0 else np.nan
 
     return {
         "strike": short_opt["strike"],
-        "expiration_short": short_opt["expiration"],
-        "expiration_long": long_opt["expiration"],
+        "short_exp": short_opt["expirDate"],
+        "long_exp": long_opt["expirDate"],
 
         "net_vega": net_vega,
         "net_theta": net_theta,
@@ -81,5 +82,5 @@ def compute_calendar_metrics(short_opt, long_opt, core):
         "em_ratio": em_ratio,
 
         "debit": debit,
-        "peak_cost_ratio": peak_cost_ratio
+        "peak_cost_ratio": peak_cost_ratio,
     }
